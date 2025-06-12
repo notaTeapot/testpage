@@ -57,7 +57,19 @@
 
         function extractDeezerTrackId(url) {
             const match = url.match(/deezer\.com\/track\/(\d+)/);
-            return match ? match[1] : null;
+            console.log(match)
+            const match_spotify = url.match(/(?:spotify:track:|#)(\d+)$/);
+            console.log(match_spotify);
+            if (match) {
+                console.log("hey")
+                return match[1]
+            };
+            if (match_spotify) {
+                console.log("ho")
+                return match_spotify[1]
+
+            };
+            return null;
         }
 
         function fetchDeezerJsonp(trackId) {
@@ -77,10 +89,10 @@
         }
 
         async function handleScanSuccess(decodedText) {
-            if (!decodedText.includes("deezer.com/track/")) {
-                statusElement.textContent = "Kein gültiger Deezer-Link.";
-                return;
-            }
+            // if (!decodedText.includes("deezer.com/track/")) {
+            //     statusElement.textContent = "Kein gültiger Deezer-Link.";
+            //     return;
+            // }
 
             const trackId = extractDeezerTrackId(decodedText);
             if (!trackId) {
