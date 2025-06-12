@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="de">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Spotify QR Scanner</title>
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <style>
+        body {
+            font-family: sans-serif;
+            text-align: center;
+            padding: 2rem;
+        }
+
+        iframe {
+            margin-top: 2rem;
+            border-radius: 12px;
+            width: 100%;
+            max-width: 600px;
+            height: 80px;
+            border: none;
+        }
+
+        #reader {
+            width: 300px;
+            margin: 0 auto;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>Spotify QR-Code Scanner</h1>
+    <div id="reader"></div>
+    <div id="result"></div>
+    <iframe id="spotifyPlayer" allow="autoplay; encrypted-media;" loading="lazy"></iframe>
+
+    <script>
+        function parseSpotifyLink(link) {
+            // Prüft auf spotify:track:ID oder https://open.spotify.com/track/ID
+            const uriMatch = link.match(/^spotify:track:([a-zA-Z0-9]+)$/);
+            const urlMatch = link.match(/^https:\/\/open\.spotify\.com\/track\/([a-zA-Z0-9]+)/);
+
+            if (uriMatch) {
+                return uriMatch[1]; // trackId aus URI
+            } else if (urlMatch) {
+                return urlMatch[1]; // trackId aus URL
+            }
+            return null;
+        }
+
+        const scanner = new Html5Qrcode("reader");
+
+        scanner.start(
+            { facingMode: "environment" },
+            {
+                fps: 10,
+                qrbox: 250
+            },
+            qrCodeMessage => {
+                const trackId = parseSpotifyLink(qrCodeMessage);
+                if (trackId) {
+                    const embedUrl = `https://open.spotify.com/embed/track/${trackId}`;
+                    document.getElementById("spotifyPlayer").src = embedUrl;
+                    document.getElementById("result").innerText = "Song geladen!";
+                } else {
+                    document.getElementById("result").innerText = "Ungültiger Spotify-Link!";
+                }
+                scanner.stop(); // Stoppt nach erstem Scan
+            },
+            errorMessage => {
+                // still ignorieren
+            }
+        ).catch(err => {
+            console.error("Scanner-Fehler:", err);
+        });
+    </script>
+
+</body>
+
+</html>

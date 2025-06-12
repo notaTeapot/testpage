@@ -3,79 +3,92 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>Spotify QR Scanner</title>
-    <script src="https://unpkg.com/html5-qrcode"></script>
+    <title>Deezer QR Scanner</title>
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
     <style>
         body {
             font-family: sans-serif;
             text-align: center;
-            padding: 2rem;
+            padding: 2em;
+            background-color: #f4f4f4;
         }
 
-        iframe {
-            margin-top: 2rem;
-            border-radius: 12px;
-            width: 100%;
-            max-width: 600px;
-            height: 80px;
-            border: none;
-        }
-
-        #reader {
+        #qr-reader {
             width: 300px;
-            margin: 0 auto;
+            margin: auto;
+        }
+
+        audio {
+            margin-top: 1em;
         }
     </style>
 </head>
 
 <body>
-
-    <h1>Spotify QR-Code Scanner</h1>
-    <div id="reader"></div>
-    <div id="result"></div>
-    <iframe id="spotifyPlayer" allow="autoplay; encrypted-media;" loading="lazy"></iframe>
+    <h1>Deezer QR Scanner</h1>
+    <div id="qr-reader"></div>
+    <p id="status">Scanne einen Deezer QR-Code…</p>
+    <audio id="audio" controls autoplay></audio>
 
     <script>
-        function parseSpotifyLink(link) {
-            // Prüft auf spotify:track:ID oder https://open.spotify.com/track/ID
-            const uriMatch = link.match(/^spotify:track:([a-zA-Z0-9]+)$/);
-            const urlMatch = link.match(/^https:\/\/open\.spotify\.com\/track\/([a-zA-Z0-9]+)/);
+        const audioElement = document.getElementById('audio');
+        const statusElement = document.getElementById('status');
 
-            if (uriMatch) {
-                return uriMatch[1]; // trackId aus URI
-            } else if (urlMatch) {
-                return urlMatch[1]; // trackId aus URL
-            }
-            return null;
+        function extractDeezerTrackId(url) {
+            const match = url.match(/deezer\.com\/track\/(\d+)/);
+            return match ? match[1] : null;
         }
 
-        const scanner = new Html5Qrcode("reader");
+        async function fetchDeezerPreview(trackId) {
+            try {
+                const response = await fetch(`https://api.deezer.com/track/${trackId}?output=jsonp`);
+                const text = await response.text();
+                const json = JSON.parse(text.replace(/^.+?\(/, '').replace(/\);?$/, ''));
+                return json.preview;
+            } catch (error) {
+                console.error('Fehler beim Abrufen der Preview:', error);
+                return null;
+            }
+        }
 
-        scanner.start(
+        async function handleScanSuccess(decodedText) {
+            if (!decodedText.includes("deezer.com/track/")) {
+                statusElement.textContent = "Kein gültiger Deezer-Link.";
+                return;
+            }
+
+            statusElement.textContent = `Track-Link erkannt: ${decodedText}`;
+            const trackId = extractDeezerTrackId(decodedText);
+
+            if (!trackId) {
+                statusElement.textContent = "Track-ID konnte nicht extrahiert werden.";
+                return;
+            }
+
+            statusElement.textContent = `Lade Preview für Track ${trackId}…`;
+            const previewUrl = await fetchDeezerPreview(trackId);
+
+            if (previewUrl) {
+                audioElement.src = previewUrl;
+                audioElement.play();
+                statusElement.textContent = "Preview wird abgespielt.";
+            } else {
+                statusElement.textContent = "Preview konnte nicht geladen werden.";
+            }
+        }
+
+        new Html5Qrcode("qr-reader").start(
             { facingMode: "environment" },
             {
                 fps: 10,
                 qrbox: 250
             },
-            qrCodeMessage => {
-                const trackId = parseSpotifyLink(qrCodeMessage);
-                if (trackId) {
-                    const embedUrl = `https://open.spotify.com/embed/track/${trackId}`;
-                    document.getElementById("spotifyPlayer").src = embedUrl;
-                    document.getElementById("result").innerText = "Song geladen!";
-                } else {
-                    document.getElementById("result").innerText = "Ungültiger Spotify-Link!";
-                }
-                scanner.stop(); // Stoppt nach erstem Scan
-            },
-            errorMessage => {
-                // still ignorieren
+            handleScanSuccess,
+            (errorMessage) => {
+                // Fehler beim Scannen ignorieren
             }
-        ).catch(err => {
-            console.error("Scanner-Fehler:", err);
-        });
+        );
     </script>
-
 </body>
 
 </html>
